@@ -1,0 +1,38 @@
+{
+  "name": "emdash-plugin-engagement",
+  "version": "0.1.0",
+  "description": "Post-publish/reply email digests and comment-activity gamification (points, badges, leaderboard) for EmDash CMS",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./astro": "./src/astro/index.ts"
+  },
+  "keywords": [
+    "emdash",
+    "emdash-plugin",
+    "email-digest",
+    "newsletter",
+    "gamification",
+    "engagement",
+    "comments"
+  ],
+  "peerDependencies": {
+    "emdash": ">=0.25.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.0.0",
+    "astro": "^6.0.1",
+    "emdash": "^0.29.0",
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marcusbellamyshaw-cell/emdash-plugin-engagement.git"
+  }
+}

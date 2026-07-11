@@ -1,0 +1,51 @@
+---
+interface Props {
+	/** "posts" = notify on every new post. "thread" = notify on replies to this content only. */
+	scope: "posts" | "thread";
+	/** Required when scope="thread" — the content item's id. */
+	contentId?: string;
+}
+
+const { scope, contentId } = Astro.props as Props;
+if (scope === "thread" && !contentId) {
+	throw new Error("SubscribeForm: contentId is required when scope=\"thread\"");
+}
+const formId = `emdash-engagement-subscribe-${scope}-${contentId ?? "site"}`;
+---
+
+<form id={formId} class="emdash-engagement-subscribe">
+	<label>
+		<input type="email" name="email" placeholder="you@example.com" required />
+		{scope === "posts" ? "Email me new posts" : "Notify me of replies"}
+	</label>
+	<button type="submit">Subscribe</button>
+	<p class="emdash-engagement-subscribe-status" role="status" aria-live="polite"></p>
+</form>
+
+<script define:vars={{ formId, scope, contentId }}>
+	const form = document.getElementById(formId);
+	form?.addEventListener("submit", async (event) => {
+		event.preventDefault();
+		const status = form.querySelector(".emdash-engagement-subscribe-status");
+		const email = new FormData(form).get("email");
+		if (status) status.textContent = "Subscribing…";
+		try {
+			const response = await fetch("/_emdash/api/plugins/engagement/subscribe", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ email, scope, contentId }),
+			});
+			const body = await response.json();
+			if (!response.ok) throw new Error(body?.error?.message ?? "Subscription failed");
+			if (status) {
+				status.textContent =
+					body?.data?.status === "already-subscribed"
+						? "You're already subscribed."
+						: "Check your email to confirm.";
+			}
+			form.reset();
+		} catch {
+			if (status) status.textContent = "Something went wrong — try again.";
+		}
+	});
+</script>
