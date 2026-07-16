@@ -1,13 +1,20 @@
 {
   "name": "emdash-plugin-engagement",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Post-publish/reply email digests and comment-activity gamification (points, badges, leaderboard) for EmDash CMS",
   "license": "MIT",
   "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "exports": {
-    ".": "./src/index.ts",
+    ".": "./dist/index.js",
+    "./sandbox": "./dist/sandbox-entry.js",
     "./astro": "./src/astro/index.ts"
   },
+  "files": [
+    "dist",
+    "src/astro"
+  ],
   "keywords": [
     "emdash",
     "emdash-plugin",
@@ -29,7 +36,9 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "repository": {
     "type": "git",
