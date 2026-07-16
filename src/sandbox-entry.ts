@@ -209,7 +209,7 @@ async function handleApprovedComment(
  */
 export default definePlugin({
 	id: "engagement",
-	version: "0.2.2",
+	version: "0.2.3",
 
 	hooks: {
 			"plugin:activate": {

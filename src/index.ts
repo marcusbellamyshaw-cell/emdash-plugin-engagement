@@ -13,7 +13,7 @@ export { default } from "./sandbox-entry.js";
  *
  * Needs no core changes — built entirely on public hooks
  * (`content:afterPublish`, `comment:afterCreate`, `cron`) and the
- * `email:send` / `users:read` capabilities.
+ * `email:send` / `users:read` / `content:read` capabilities.
  *
  * Runtime config (site name in emails, digest send hour, points per
  * comment, badge thresholds) is set from the plugin's own admin Settings
@@ -22,10 +22,10 @@ export { default } from "./sandbox-entry.js";
 export function engagementPlugin(): PluginDescriptor {
 	return {
 		id: "engagement",
-		version: "0.2.2",
+		version: "0.2.3",
 		format: "standard",
 		entrypoint: "emdash-plugin-engagement/sandbox",
-		capabilities: ["email:send", "users:read"],
+		capabilities: ["email:send", "users:read", "content:read"],
 		adminPages: [{ path: "/settings", label: "Engagement Settings", icon: "send" }],
 		adminWidgets: [{ id: "status", title: "Engagement", size: "third" }],
 		storage: {

@@ -8,7 +8,7 @@ levels/badges), built as a plugin so it needs no core changes.
 
 Needs no core changes. Built entirely on public plugin hooks
 (`content:afterPublish`, `comment:afterCreate`, `comment:afterModerate`,
-`cron`) and the `email:send` / `users:read` capabilities.
+`cron`) and the `email:send` / `users:read` / `content:read` capabilities.
 
 ## What it does
 
@@ -37,16 +37,23 @@ import { engagementPlugin } from "emdash-plugin-engagement";
 export default {
   integrations: [
     emdash({
-      sandboxed: [engagementPlugin()],
+      plugins: [engagementPlugin()],
       // ...
     }),
   ],
 };
 ```
 
-`sandboxed` (recommended) runs the plugin in an isolate, same trust model as
-any other third-party plugin. `plugins: [engagementPlugin()]` also works if
-you'd rather run it in-process.
+**Use `plugins: [engagementPlugin()]` (trusted/in-process) for now, not
+`sandboxed: [...]`.** Emdash's sandboxed-plugin loader only reads a route's
+`public: true` flag from a marketplace/registry-installed bundle's manifest —
+a plugin registered via `sandboxed: []` in `astro.config.mjs` never gets that
+metadata populated, so every route but the implicit `admin` one falls back to
+requiring authentication, breaking `subscribe`/`confirm`/`unsubscribe`/
+`leaderboard` for anonymous readers. Filed upstream:
+[emdash-cms/emdash#2078](https://github.com/emdash-cms/emdash/issues/2078).
+Once that's fixed, `sandboxed: [engagementPlugin()]` should work and is the
+better isolation story.
 
 Requires `emdash >= 0.25.0` and an email provider configured (anything that
 grants `email:send` capability delivery — see EmDash's email setup docs).
