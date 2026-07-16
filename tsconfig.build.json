@@ -1,0 +1,17 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"noEmit": false,
+		"outDir": "dist",
+		"declaration": false,
+		"allowImportingTsExtensions": false
+	},
+	"include": [
+		"src/index.ts",
+		"src/sandbox-entry.ts",
+		"src/badges.ts",
+		"src/digest.ts",
+		"src/subscriptions.ts",
+		"src/templates.ts"
+	]
+}

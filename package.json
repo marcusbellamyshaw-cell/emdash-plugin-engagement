@@ -4,11 +4,11 @@
   "description": "Post-publish/reply email digests and comment-activity gamification (points, badges, leaderboard) for EmDash CMS",
   "license": "MIT",
   "type": "module",
-  "main": "./dist/index.mjs",
-  "module": "./dist/index.mjs",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "exports": {
-    ".": "./dist/index.mjs",
-    "./sandbox": "./dist/sandbox-entry.mjs",
+    ".": "./dist/index.js",
+    "./sandbox": "./dist/sandbox-entry.js",
     "./astro": "./src/astro/index.ts"
   },
   "files": [
@@ -31,14 +31,13 @@
     "@cloudflare/workers-types": "^4.0.0",
     "astro": "^6.0.1",
     "emdash": "^0.29.0",
-    "esbuild": "^0.24.2",
     "typescript": "^5.0.0",
     "vitest": "^3.0.0"
   },
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "build": "node build.mjs",
+    "build": "tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "repository": {
