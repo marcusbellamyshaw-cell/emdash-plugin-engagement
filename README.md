@@ -1,5 +1,18 @@
 # emdash-plugin-engagement
 
+**Currently not installable on a working site.** Confirmed on a real
+production deploy (not just local dev): every public route this plugin
+exposes (`subscribe`/`confirm`/`unsubscribe`/`leaderboard`) is broken by
+two Emdash core bugs, filed and unfixed as of this writing —
+[emdash-cms/emdash#2078](https://github.com/emdash-cms/emdash/issues/2078)
+(`sandboxed: []` 401s every non-admin route) and
+[emdash-cms/emdash#2079](https://github.com/emdash-cms/emdash/issues/2079)
+(`plugins: []` trusted mode crashes any route touching `ctx.storage`/
+`ctx.email`/etc.). Comment gamification and the new-post digest queue
+(hooks, not routes) should still work, but there's no way to actually
+subscribe or view the leaderboard until one of those lands upstream. Don't
+install this yet — check the linked issues for status first.
+
 Post-publish/reply email digests and comment-activity gamification (points,
 badges, leaderboard) for [EmDash CMS](https://emdashcms.com) sites — the
 retention mechanics most publishing platforms treat as table stakes
