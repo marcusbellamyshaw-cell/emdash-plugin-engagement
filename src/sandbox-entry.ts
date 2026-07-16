@@ -1,7 +1,13 @@
 import { definePlugin, PluginRouteError } from "emdash";
 import type { PluginContext, RouteContext } from "emdash";
 
-import { DEFAULT_BADGE_THRESHOLDS, newlyUnlockedBadges, type BadgeThreshold } from "./badges.js";
+import {
+	DEFAULT_BADGE_THRESHOLDS,
+	newlyUnlockedBadges,
+	sanitizeBadgeThresholds,
+	type BadgeThreshold,
+} from "./badges.js";
+import { buildDigestCronSchedule, type DigestFrequency } from "./digest.js";
 import {
 	buildScope,
 	isValidEmail,
@@ -34,8 +40,14 @@ interface DigestQueueEntry {
 interface EngagementOptions {
 	siteName?: string;
 	digestHourUtc?: number;
+	digestFrequency?: DigestFrequency;
+	digestWeekday?: number;
 	pointsPerComment?: number;
 	badgeThresholds?: BadgeThreshold[];
+	/** Site path to a friendly confirm page (e.g. "/subscribe/confirm"). Blank = raw API link. */
+	confirmPageUrl?: string;
+	/** Site path to a friendly unsubscribe page (e.g. "/subscribe/unsubscribe"). Blank = raw API link. */
+	unsubscribePageUrl?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -50,11 +62,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * hook/route handlers. Mirrors the existing webhook-notifier plugin.
  */
 async function getOptions(ctx: PluginContext): Promise<Required<EngagementOptions>> {
-	const [siteName, digestHourUtc, pointsPerComment, badgeThresholds] = await Promise.all([
+	const [
+		siteName,
+		digestHourUtc,
+		digestFrequency,
+		digestWeekday,
+		pointsPerComment,
+		badgeThresholds,
+		confirmPageUrl,
+		unsubscribePageUrl,
+	] = await Promise.all([
 		ctx.kv.get<string>("settings:siteName"),
 		ctx.kv.get<number>("settings:digestHourUtc"),
+		ctx.kv.get<string>("settings:digestFrequency"),
+		ctx.kv.get<number>("settings:digestWeekday"),
 		ctx.kv.get<number>("settings:pointsPerComment"),
 		ctx.kv.get<BadgeThreshold[]>("settings:badgeThresholds"),
+		ctx.kv.get<string>("settings:confirmPageUrl"),
+		ctx.kv.get<string>("settings:unsubscribePageUrl"),
 	]);
 	return {
 		siteName: siteName || ctx.site.name || "This site",
@@ -62,9 +87,32 @@ async function getOptions(ctx: PluginContext): Promise<Required<EngagementOption
 			typeof digestHourUtc === "number" && digestHourUtc >= 0 && digestHourUtc <= 23
 				? digestHourUtc
 				: 13,
+		digestFrequency: digestFrequency === "weekly" ? "weekly" : "daily",
+		digestWeekday:
+			typeof digestWeekday === "number" && digestWeekday >= 0 && digestWeekday <= 6
+				? digestWeekday
+				: 0,
 		pointsPerComment: typeof pointsPerComment === "number" ? pointsPerComment : 10,
 		badgeThresholds: Array.isArray(badgeThresholds) ? badgeThresholds : DEFAULT_BADGE_THRESHOLDS,
+		confirmPageUrl: confirmPageUrl || "",
+		unsubscribePageUrl: unsubscribePageUrl || "",
 	};
+}
+
+/**
+ * Builds the confirm/unsubscribe link sent in emails. Points at the site's
+ * own friendly page (see `emdash-plugin-engagement/astro`'s
+ * `ConfirmSubscription`/`Unsubscribe` components) when the admin has
+ * configured one; otherwise falls back to the plugin's raw JSON API route.
+ */
+function buildTokenLink(
+	ctx: PluginContext,
+	pagePath: string,
+	apiRoute: "confirm" | "unsubscribe",
+	token: string,
+): string {
+	const path = pagePath || `/_emdash/api/plugins/engagement/${apiRoute}`;
+	return ctx.url(`${path}?token=${encodeURIComponent(token)}`);
 }
 
 async function findSubscriptionByToken(
@@ -137,9 +185,7 @@ async function handleApprovedComment(
 	for (const { id, data } of subscribers.items) {
 		const record = data as SubscriptionRecord;
 		if (normalizeEmail(record.email) === normalizeEmail(comment.authorEmail)) continue; // don't notify people about their own reply
-		const unsubscribeUrl = ctx.url(
-			`/_emdash/api/plugins/engagement/unsubscribe?token=${record.token}`,
-		);
+		const unsubscribeUrl = buildTokenLink(ctx, opts.unsubscribePageUrl, "unsubscribe", record.token);
 		const body = buildReplyNotificationEmail(
 			opts.siteName,
 			comment.authorName,
@@ -157,7 +203,7 @@ async function handleApprovedComment(
 export function createPlugin() {
 	return definePlugin({
 		id: "engagement",
-		version: "0.1.0",
+		version: "0.2.0",
 
 		hooks: {
 			"plugin:activate": {
@@ -165,7 +211,11 @@ export function createPlugin() {
 					const opts = await getOptions(ctx);
 					if (ctx.cron) {
 						await ctx.cron.schedule(DIGEST_CRON_NAME, {
-							schedule: `0 ${opts.digestHourUtc} * * *`,
+							schedule: buildDigestCronSchedule(
+								opts.digestHourUtc,
+								opts.digestFrequency,
+								opts.digestWeekday,
+							),
 						});
 					}
 				},
@@ -256,8 +306,11 @@ export function createPlugin() {
 
 					for (const { id, data } of subscribers.items) {
 						const record = data as SubscriptionRecord;
-						const unsubscribeUrl = ctx.url(
-							`/_emdash/api/plugins/engagement/unsubscribe?token=${record.token}`,
+						const unsubscribeUrl = buildTokenLink(
+							ctx,
+							opts.unsubscribePageUrl,
+							"unsubscribe",
+							record.token,
 						);
 						const body = buildDigestEmail(opts.siteName, items, unsubscribeUrl);
 						try {
@@ -311,7 +364,7 @@ export function createPlugin() {
 					await sub.put(id, record);
 
 					if (ctx.email) {
-						const confirmUrl = ctx.url(`/_emdash/api/plugins/engagement/confirm?token=${token}`);
+						const confirmUrl = buildTokenLink(ctx, opts.confirmPageUrl, "confirm", token);
 						const body = buildConfirmEmail(opts.siteName, confirmUrl);
 						try {
 							await ctx.email.send({ to: record.email, ...body });
@@ -445,14 +498,54 @@ async function buildSettingsPage(ctx: PluginContext) {
 					{
 						type: "text_input",
 						action_id: "digestHourUtc",
-						label: "Daily digest send hour (UTC, 0-23)",
+						label: "Digest send hour (UTC, 0-23)",
 						initial_value: String(opts.digestHourUtc),
+					},
+					{
+						type: "select",
+						action_id: "digestFrequency",
+						label: "Digest frequency",
+						options: [
+							{ label: "Daily", value: "daily" },
+							{ label: "Weekly", value: "weekly" },
+						],
+						initial_value: opts.digestFrequency,
+					},
+					{
+						type: "text_input",
+						action_id: "digestWeekday",
+						label: "Weekly digest day (0=Sunday...6=Saturday, ignored when frequency is daily)",
+						initial_value: String(opts.digestWeekday),
 					},
 					{
 						type: "text_input",
 						action_id: "pointsPerComment",
 						label: "Points per approved comment",
 						initial_value: String(opts.pointsPerComment),
+					},
+					{
+						type: "text_input",
+						action_id: "confirmPageUrl",
+						label: "Confirm page path (blank = raw API link, e.g. /subscribe/confirm)",
+						initial_value: opts.confirmPageUrl,
+					},
+					{
+						type: "text_input",
+						action_id: "unsubscribePageUrl",
+						label: "Unsubscribe page path (blank = raw API link, e.g. /subscribe/unsubscribe)",
+						initial_value: opts.unsubscribePageUrl,
+					},
+					{
+						type: "repeater",
+						action_id: "badgeThresholds",
+						label: "Badge thresholds",
+						item_label: "Badge",
+						min_items: 1,
+						fields: [
+							{ type: "number_input", action_id: "count", label: "Comments required", min: 1 },
+							{ type: "text_input", action_id: "label", label: "Badge label" },
+						],
+						initial_value: opts.badgeThresholds,
 					},
 				],
 				submit: { label: "Save Settings", action_id: "save_settings" },
@@ -462,22 +555,57 @@ async function buildSettingsPage(ctx: PluginContext) {
 }
 
 async function saveSettings(ctx: PluginContext, values: Record<string, unknown>) {
+	const current = await getOptions(ctx);
 	if (typeof values.siteName === "string") await ctx.kv.set("settings:siteName", values.siteName);
+
+	let digestHourUtc = current.digestHourUtc;
 	if (typeof values.digestHourUtc === "string" || typeof values.digestHourUtc === "number") {
 		const hour = Number(values.digestHourUtc);
 		if (Number.isFinite(hour) && hour >= 0 && hour <= 23) {
+			digestHourUtc = hour;
 			await ctx.kv.set("settings:digestHourUtc", hour);
-			if (ctx.cron) {
-				await ctx.cron.schedule(DIGEST_CRON_NAME, { schedule: `0 ${hour} * * *` });
-			}
 		}
 	}
+
+	let digestFrequency = current.digestFrequency;
+	if (values.digestFrequency === "daily" || values.digestFrequency === "weekly") {
+		digestFrequency = values.digestFrequency;
+		await ctx.kv.set("settings:digestFrequency", digestFrequency);
+	}
+
+	let digestWeekday = current.digestWeekday;
+	if (typeof values.digestWeekday === "string" || typeof values.digestWeekday === "number") {
+		const weekday = Number(values.digestWeekday);
+		if (Number.isInteger(weekday) && weekday >= 0 && weekday <= 6) {
+			digestWeekday = weekday;
+			await ctx.kv.set("settings:digestWeekday", weekday);
+		}
+	}
+
+	if (ctx.cron) {
+		await ctx.cron.schedule(DIGEST_CRON_NAME, {
+			schedule: buildDigestCronSchedule(digestHourUtc, digestFrequency, digestWeekday),
+		});
+	}
+
 	if (typeof values.pointsPerComment === "string" || typeof values.pointsPerComment === "number") {
 		const points = Number(values.pointsPerComment);
 		if (Number.isFinite(points) && points >= 0) {
 			await ctx.kv.set("settings:pointsPerComment", points);
 		}
 	}
+
+	if (values.badgeThresholds !== undefined) {
+		await ctx.kv.set("settings:badgeThresholds", sanitizeBadgeThresholds(values.badgeThresholds));
+	}
+
+	if (typeof values.confirmPageUrl === "string") {
+		await ctx.kv.set("settings:confirmPageUrl", values.confirmPageUrl.trim());
+	}
+	if (typeof values.unsubscribePageUrl === "string") {
+		await ctx.kv.set("settings:unsubscribePageUrl", values.unsubscribePageUrl.trim());
+	}
+
 	return {
 		...(await buildSettingsPage(ctx)),
 		toast: { message: "Settings saved", type: "success" },

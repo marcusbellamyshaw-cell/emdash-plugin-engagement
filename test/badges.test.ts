@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { newlyUnlockedBadges, DEFAULT_BADGE_THRESHOLDS } from "../src/badges.js";
+import {
+	newlyUnlockedBadges,
+	sanitizeBadgeThresholds,
+	DEFAULT_BADGE_THRESHOLDS,
+} from "../src/badges.js";
 
 describe("newlyUnlockedBadges", () => {
 	it("unlocks the first badge on the first comment", () => {
@@ -28,5 +32,43 @@ describe("newlyUnlockedBadges", () => {
 	it("default thresholds are ascending and cover the documented tiers", () => {
 		const counts = DEFAULT_BADGE_THRESHOLDS.map((t) => t.count);
 		expect(counts).toEqual([1, 10, 50, 200]);
+	});
+});
+
+describe("sanitizeBadgeThresholds", () => {
+	it("sorts rows ascending by count regardless of input order", () => {
+		const raw = [
+			{ count: 50, label: "Super Commenter" },
+			{ count: 1, label: "First Comment" },
+		];
+		expect(sanitizeBadgeThresholds(raw)).toEqual([
+			{ count: 1, label: "First Comment" },
+			{ count: 50, label: "Super Commenter" },
+		]);
+	});
+
+	it("drops rows with a non-positive count or empty label", () => {
+		const raw = [
+			{ count: 0, label: "Zero" },
+			{ count: 5, label: "" },
+			{ count: -1, label: "Negative" },
+			{ count: 5, label: "Valid" },
+		];
+		expect(sanitizeBadgeThresholds(raw)).toEqual([{ count: 5, label: "Valid" }]);
+	});
+
+	it("coerces string counts from form input to numbers", () => {
+		expect(sanitizeBadgeThresholds([{ count: "3", label: "Three" }])).toEqual([
+			{ count: 3, label: "Three" },
+		]);
+	});
+
+	it("falls back to defaults when nothing valid survives", () => {
+		expect(sanitizeBadgeThresholds([{ count: 0, label: "" }])).toEqual(DEFAULT_BADGE_THRESHOLDS);
+	});
+
+	it("falls back to defaults for non-array input", () => {
+		expect(sanitizeBadgeThresholds(undefined)).toEqual(DEFAULT_BADGE_THRESHOLDS);
+		expect(sanitizeBadgeThresholds("nope")).toEqual(DEFAULT_BADGE_THRESHOLDS);
 	});
 });

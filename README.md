@@ -57,12 +57,12 @@ After install, open the plugin's **Engagement Settings** page in the admin
 (auto-registered under Plugins). You can set:
 
 - Site name used in email subjects/bodies (defaults to your site's configured name)
-- Daily digest send hour (UTC)
+- Digest send hour (UTC), frequency (daily or weekly), and weekly send day
 - Points awarded per approved comment
-
-Badge thresholds are code-level only for now (see `src/badges.ts`) — pass a
-custom list via `settings:badgeThresholds` in the plugin's KV store if you
-need different tiers than the defaults.
+- Badge thresholds (comments required + label per tier) — edit, add, or
+  remove tiers directly on the settings page; defaults are "First Comment"
+  (1), "Regular" (10), "Super Commenter" (50), "Legend" (200) from
+  `src/badges.ts`
 
 ## Add the subscribe UI
 
@@ -82,6 +82,39 @@ import { SubscribeForm } from "emdash-plugin-engagement/astro";
 It posts to the plugin's own API and needs no props beyond `scope` (and
 `contentId` for `scope="thread"`).
 
+## Add friendly confirm/unsubscribe pages
+
+Plugin routes only ever return JSON, so the raw `confirm`/`unsubscribe` API
+links aren't something you'd want a reader to land on directly. Point the
+email links at your own thin pages instead, and drop these components in:
+
+```astro
+---
+// src/pages/subscribe/confirm.astro
+import { ConfirmSubscription } from "emdash-plugin-engagement/astro";
+---
+
+<ConfirmSubscription />
+```
+
+```astro
+---
+// src/pages/subscribe/unsubscribe.astro
+import { Unsubscribe } from "emdash-plugin-engagement/astro";
+---
+
+<Unsubscribe />
+```
+
+Both read the `token` query param client-side and call the plugin's
+`confirm`/`unsubscribe` routes, replacing a status paragraph with the result.
+They're intentionally unstyled — wrap them in your own page chrome.
+
+Then set **Confirm page path** / **Unsubscribe page path** on the Engagement
+Settings admin page to `/subscribe/confirm` / `/subscribe/unsubscribe` (or
+wherever you placed them) so email links point at your pages instead of the
+raw JSON API routes. Leave either blank to keep that one on the raw link.
+
 ## Routes
 
 All under `/_emdash/api/plugins/engagement/`, all public (no auth required):
@@ -93,16 +126,15 @@ All under `/_emdash/api/plugins/engagement/`, all public (no auth required):
 | `unsubscribe` | GET | `?token=` — removes a subscription (idempotent) |
 | `leaderboard` | GET | `?limit=` (default 10, max 100) — top commenters by points |
 
-## Known limitations (v0.1.0)
+## Known limitations (v0.2.0)
 
-- `confirm`/`unsubscribe` links return raw JSON (all plugin routes do —
-  there's no HTML-response path in the current plugin route system). Clicking
-  the email link shows `{"data":{"status":"confirmed"}}` rather than a
-  friendly page. Build your own thin confirmation page against these routes
-  if you want nicer UX; the API itself is enough to build on.
-- Badge thresholds aren't yet admin-configurable through the settings UI
-  (KV-settable only, see above).
-- The digest is daily-only; no immediate/weekly option yet.
+- Plugin routes still only return JSON (no HTML-response path in the
+  current plugin route system) — the `ConfirmSubscription`/`Unsubscribe`
+  components above are the workaround, not a core fix. If you don't wire up
+  the page paths in settings, the raw links still show
+  `{"data":{"status":"confirmed"}}`.
+- Digest cadence is daily or weekly only; no arbitrary cron expression or
+  immediate/instant option.
 
 ## License
 
