@@ -1,0 +1,34 @@
+---
+interface Props {
+	/** Text shown before the confirm call resolves. */
+	pendingText?: string;
+}
+
+const { pendingText = "Confirming your subscription…" } = Astro.props as Props;
+---
+
+<p id="emdash-engagement-confirm-status" role="status" aria-live="polite">{pendingText}</p>
+
+<script>
+	const status = document.getElementById("emdash-engagement-confirm-status");
+	const token = new URLSearchParams(location.search).get("token");
+
+	async function run() {
+		if (!token) {
+			if (status) status.textContent = "Missing confirmation token.";
+			return;
+		}
+		try {
+			const response = await fetch(
+				`/_emdash/api/plugins/engagement/confirm?token=${encodeURIComponent(token)}`,
+			);
+			const body = await response.json();
+			if (!response.ok) throw new Error(body?.error?.message ?? "Confirmation failed");
+			if (status) status.textContent = "Subscription confirmed — you're all set.";
+		} catch {
+			if (status) status.textContent = "That confirmation link is invalid or has expired.";
+		}
+	}
+
+	run();
+</script>

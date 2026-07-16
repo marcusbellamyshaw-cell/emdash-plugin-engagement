@@ -17,7 +17,7 @@ export { createPlugin } from "./sandbox-entry.js";
 export function engagementPlugin(): PluginDescriptor {
 	return {
 		id: "engagement",
-		version: "0.1.0",
+		version: "0.2.0",
 		entrypoint: "emdash-plugin-engagement",
 		capabilities: ["email:send", "users:read"],
 		adminPages: [{ path: "/settings", label: "Engagement Settings", icon: "send" }],

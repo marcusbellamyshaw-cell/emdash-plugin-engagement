@@ -1,0 +1,33 @@
+---
+interface Props {
+	/** Text shown before the unsubscribe call resolves. */
+	pendingText?: string;
+}
+
+const { pendingText = "Unsubscribing…" } = Astro.props as Props;
+---
+
+<p id="emdash-engagement-unsubscribe-status" role="status" aria-live="polite">{pendingText}</p>
+
+<script>
+	const status = document.getElementById("emdash-engagement-unsubscribe-status");
+	const token = new URLSearchParams(location.search).get("token");
+
+	async function run() {
+		if (!token) {
+			if (status) status.textContent = "Missing unsubscribe token.";
+			return;
+		}
+		try {
+			const response = await fetch(
+				`/_emdash/api/plugins/engagement/unsubscribe?token=${encodeURIComponent(token)}`,
+			);
+			if (!response.ok) throw new Error("Unsubscribe failed");
+			if (status) status.textContent = "You've been unsubscribed.";
+		} catch {
+			if (status) status.textContent = "Something went wrong — try the link again.";
+		}
+	}
+
+	run();
+</script>
