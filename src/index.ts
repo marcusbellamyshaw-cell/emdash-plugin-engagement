@@ -1,6 +1,11 @@
 import type { PluginDescriptor } from "emdash";
 
-export { createPlugin } from "./sandbox-entry.js";
+/**
+ * Standard-format entrypoint: this module's default export must be the
+ * `definePlugin()` result itself (see sandbox-entry.ts), which is what lets
+ * Emdash run this plugin under `sandboxed: []` as well as `plugins: []`.
+ */
+export { default } from "./sandbox-entry.js";
 
 /**
  * Post-publish/reply email digests + comment-activity gamification
@@ -17,7 +22,8 @@ export { createPlugin } from "./sandbox-entry.js";
 export function engagementPlugin(): PluginDescriptor {
 	return {
 		id: "engagement",
-		version: "0.2.0",
+		version: "0.2.1",
+		format: "standard",
 		entrypoint: "emdash-plugin-engagement",
 		capabilities: ["email:send", "users:read"],
 		adminPages: [{ path: "/settings", label: "Engagement Settings", icon: "send" }],

@@ -200,12 +200,18 @@ async function handleApprovedComment(
 	}
 }
 
-export function createPlugin() {
-	return definePlugin({
-		id: "engagement",
-		version: "0.2.0",
+/**
+ * Default export must be the `definePlugin()` result itself, not a factory
+ * function — that's what marks this entrypoint as "standard" format (see
+ * `format: "standard"` in `index.ts`'s `engagementPlugin()` descriptor),
+ * which is required to run under `sandboxed: []`. A function-wrapped export
+ * here reads as "native" format and Emdash refuses to sandbox it.
+ */
+export default definePlugin({
+	id: "engagement",
+	version: "0.2.1",
 
-		hooks: {
+	hooks: {
 			"plugin:activate": {
 				handler: async (_event, ctx) => {
 					const opts = await getOptions(ctx);
@@ -442,7 +448,6 @@ export function createPlugin() {
 			},
 		},
 	});
-}
 
 async function buildStatusWidget(ctx: PluginContext) {
 	const [subs, points, lastDigestSentAt, lastDigestPostCount] = await Promise.all([
@@ -611,5 +616,3 @@ async function saveSettings(ctx: PluginContext, values: Record<string, unknown>)
 		toast: { message: "Settings saved", type: "success" },
 	};
 }
-
-export default createPlugin;
