@@ -1,13 +1,20 @@
 {
   "name": "emdash-plugin-engagement",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Post-publish/reply email digests and comment-activity gamification (points, badges, leaderboard) for EmDash CMS",
   "license": "MIT",
   "type": "module",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
   "exports": {
-    ".": "./src/index.ts",
+    ".": "./dist/index.mjs",
+    "./sandbox": "./dist/sandbox-entry.mjs",
     "./astro": "./src/astro/index.ts"
   },
+  "files": [
+    "dist",
+    "src/astro"
+  ],
   "keywords": [
     "emdash",
     "emdash-plugin",
@@ -24,12 +31,15 @@
     "@cloudflare/workers-types": "^4.0.0",
     "astro": "^6.0.1",
     "emdash": "^0.29.0",
+    "esbuild": "^0.24.2",
     "typescript": "^5.0.0",
     "vitest": "^3.0.0"
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "node build.mjs",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "repository": {
     "type": "git",
