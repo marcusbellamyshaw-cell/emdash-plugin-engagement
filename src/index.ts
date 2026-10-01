@@ -22,7 +22,7 @@ export { default } from "./sandbox-entry.js";
 export function engagementPlugin(): PluginDescriptor {
 	return {
 		id: "engagement",
-		version: "0.2.3",
+		version: "0.2.4",
 		format: "standard",
 		entrypoint: "emdash-plugin-engagement/sandbox",
 		capabilities: ["email:send", "users:read", "content:read"],
