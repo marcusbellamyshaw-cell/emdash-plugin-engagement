@@ -132,6 +132,13 @@ async function findSubscriptionByToken(
  * both for the same comment, since a comment is either auto-approved on
  * creation or held and approved later, not both.
  */
+// Resolve the page's real public URL (honors the collection's urlPattern, e.g.
+// /posts/{slug}); fall back to /{slug} only if core can't resolve one (draft,
+// unroutable collection). Needs the content:read capability.
+async function entryUrl(ctx: PluginContext, collection: string, id: string, fallbackSlug: string): Promise<string> {
+	return (await ctx.content?.getPublicUrl?.(collection, id)) ?? ctx.url(`/${fallbackSlug}`);
+}
+
 async function handleApprovedComment(
 	comment: {
 		id: string;
@@ -181,7 +188,8 @@ async function handleApprovedComment(
 	const subscribers = await sub.query({ where: { scope, status: "confirmed" }, limit: 1000 });
 	if (subscribers.items.length === 0 || !ctx.email) return;
 
-	const commentUrl = ctx.url(`/${content.slug}#comment-${comment.id}`);
+	const pageUrl = await entryUrl(ctx, comment.collection, comment.contentId, content.slug);
+	const commentUrl = `${pageUrl}#comment-${comment.id}`;
 	for (const { id, data } of subscribers.items) {
 		const record = data as SubscriptionRecord;
 		if (normalizeEmail(record.email) === normalizeEmail(comment.authorEmail)) continue; // don't notify people about their own reply
@@ -299,10 +307,10 @@ export default definePlugin({
 					const queued = await queue.query({ limit: 1000 });
 					if (queued.items.length === 0 || !ctx.email) return;
 
-					const items = queued.items.map(({ data }) => {
+					const items = await Promise.all(queued.items.map(async ({ data }) => {
 						const entry = data as DigestQueueEntry;
-						return { title: entry.title, url: ctx.url(`/${entry.slug}`) };
-					});
+						return { title: entry.title, url: await entryUrl(ctx, entry.collection, entry.contentId, entry.slug) };
+					}));
 
 					const sub = ctx.storage.subscriptions!;
 					const subscribers = await sub.query({

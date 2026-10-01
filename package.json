@@ -1,6 +1,6 @@
 {
   "name": "emdash-plugin-engagement",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Post-publish/reply email digests and comment-activity gamification (points, badges, leaderboard) for EmDash CMS",
   "license": "MIT",
   "type": "module",
@@ -30,7 +30,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.0.0",
     "astro": "^6.0.1",
-    "emdash": "^0.29.0",
+    "emdash": "^1.0.1",
     "typescript": "^5.0.0",
     "vitest": "^3.0.0"
   },
